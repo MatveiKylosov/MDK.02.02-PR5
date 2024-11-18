@@ -49,56 +49,14 @@ namespace SocketServer
         {
             using (var stream = client.Client.GetStream())
             {
-                bool tokenExpired = false;
-
                 using (var writer = new StreamWriter(stream, Encoding.UTF8) { AutoFlush = true })
                 {
                     await writer.WriteLineAsync(client.Token);
                     Console.WriteLine($"Токен отправлен клиенту: {client.Token}");
                 }
 
-                Task timerTask = Task.Run(async () =>
-                {
-                    await Task.Delay(TimeSpan.FromSeconds(TokenLifetime));
-                    tokenExpired = true;
-                    client.duration++;
-                });
-
-                try
-                {
-                    while (IsRunning && !tokenExpired && client.Client.Connected)
-                    {
-                        if (!client.Client.Connected)
-                        {
-                            Console.WriteLine($"Клиент {client.IPAddress} с токеном {client.Token} отключился.");
-                            Clients.TryTake(out var removedClient);  // Удаляем клиента из списка
-                            break;  // Прерываем цикл, если соединение закрыто
-                        }
-
-                        if (client.RequestToDisconnect)
-                        {
-                            Console.WriteLine($"Клиент {client.IPAddress} был принудительно отключён.");
-                            Disconnect(client);
-                            break;  // Выход из цикла, если клиент принудительно отключен
-                        }
-
-                        await Task.Delay(500);  // небольшой таймаут, чтобы избежать излишней загрузки процессора
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Ошибка при обработке клиента: {ex.Message}");
-                }
-                finally
-                {
-                    if (tokenExpired)
-                    {
-                        Console.WriteLine($"Время жизни токена {client.Token} истекло у клиента {client.IPAddress}.");
-                        Disconnect(client);
-                    }
-
-                    await timerTask;  // Убедимся, что таймер завершился
-                }
+                //ToDo: в TCPClient есть bool, который отвечает за кикать или нет пользователя
+                //      проверять подключен ли клиент и не завершил ли жить его токен
             }
         }
 
@@ -114,8 +72,6 @@ namespace SocketServer
                 Console.WriteLine($"Ошибка при отключении клиента: {ex.Message}");
             }
         }
-
-
 
         public TCPServer(string ip = "", int port = 1337, int quantityClients = 1, int tokenLifetime = 60)
         {
