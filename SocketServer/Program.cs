@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -52,8 +53,9 @@ namespace SocketServer
                 }
             }
         }
-        static void Main()
+        static async Task Main()
         {
+            TCPServer tcpServer= new TCPServer();
             PrintLogo();
 #if false
             var regex = new Regex(@"^(\d{1,3}\.){3}\d{1,3}$");
@@ -82,10 +84,11 @@ namespace SocketServer
             Console.WriteLine($"Время жизни токена: {tokenLifetime} секунд");
             Console.WriteLine($"\nдля просмотра всех команд используйте команду /help");
 #endif
+            if(tcpServer.Start())
+
 
             while (true)
             {
-                Console.Write(">>> ");
                 var command = Console.ReadLine();
                  
                 if(command == "/help")
@@ -111,7 +114,9 @@ namespace SocketServer
 
                 else if (command == "/status")
                 {
-
+                    foreach(var x in tcpServer.GetAllTokens()) { 
+                        Console.WriteLine(x);
+                    }
                 }
 
                 else if (command == "/disconnect")

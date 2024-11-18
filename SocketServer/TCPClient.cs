@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Org.BouncyCastle.Utilities.Net;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -15,6 +16,8 @@ namespace SocketServer
         public readonly TcpClient Client;
         private string token = null;
         public bool RequestToDisconnect = false;
+        public int duration = 0;
+
         public string Token { 
             get 
             {
@@ -30,7 +33,7 @@ namespace SocketServer
                         token.Append(chars[random.Next(chars.Length)]);
                     }
 
-                    return token.ToString();
+                    this.token = token.ToString();
                 }
 
                 return token;
@@ -43,7 +46,7 @@ namespace SocketServer
                 if (ipAddress == null)
                 {
                     IPEndPoint ep = Client.Client.RemoteEndPoint as IPEndPoint;
-                    return ep.Address.ToString();
+                    ipAddress = ep.Address.ToString();
                 }
                 return ipAddress; 
             } 
