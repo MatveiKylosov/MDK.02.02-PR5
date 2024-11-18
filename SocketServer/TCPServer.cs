@@ -1,11 +1,9 @@
-﻿using System;
+﻿using MySqlX.XDevAPI;
+using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using System.Runtime.CompilerServices;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -15,7 +13,7 @@ namespace SocketServer
     {
         private readonly TcpListener TCPListener;
         private bool IsRunning;
-        private readonly ConcurrentBag<TcpClient> Clients = new ConcurrentBag<TcpClient>();
+        private readonly ConcurrentBag<TCPClient> Clients = new ConcurrentBag<TCPClient>();
         private int QuntityClients;
         private int TokenLifetime;
 
@@ -24,6 +22,7 @@ namespace SocketServer
             var ipServer = ip == "" ? IPAddress.Any : IPAddress.Parse(ip);
             TCPListener = new TcpListener(ipServer, port);
             IsRunning = false;
+
             QuntityClients = quantityClients;
             TokenLifetime = tokenLifetime;
         }
@@ -36,19 +35,20 @@ namespace SocketServer
                 IsRunning = true;
                 Console.WriteLine("Сервер запущен...");
 
-                // Основной цикл прослушивания
                 while (IsRunning)
                 {
-                    if(Clients.Count() == QuntityClients)
+                    if (Clients.Count() == QuntityClients)
                     {
-                        //Давать отворот клиентам
                         continue;
-                    }    
+                    }
 
                     try
                     {
                         var client = await TCPListener.AcceptTcpClientAsync();
-                        Clients.Add(client); // Добавляем клиента в список
+                        var tcpClient = new TCPClient(client);
+                        Clients.Add(tcpClient);
+
+                        await HandleClientAsync(tcpClient);
                     }
                     catch (Exception ex)
                     {
@@ -65,15 +65,68 @@ namespace SocketServer
             }
         }
 
-        public void Stop()
+        private async Task HandleClientAsync(TCPClient client)
+        {
+            using (var stream = client.Client.GetStream())
+            {
+                bool tokenExpired = false;
+                Task timerTask = Task.Run(async () =>
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(TokenLifetime));
+                    tokenExpired = true; Console.WriteLine("Время жизни токена истекло.");
+                });
+
+                try
+                {
+                    while (IsRunning && !tokenExpired)
+                    {
+                        try
+                        {
+                            //...
+                        }
+                        catch (Exception ex)
+                        {
+#if DEBUG
+                            Console.WriteLine($"Ошибка обработки клиента: {ex.Message}");
+#endif
+                            break;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+#if DEBUG
+                    Console.WriteLine($"Ошибка при обработке клиента: {ex.Message}");
+#endif
+                }
+                finally
+                {
+                    if (tokenExpired)
+                    {
+                        Disconnect(client);
+                    }
+
+                    await timerTask;
+                }
+            }
+        }
+
+
+        public void Disconnect(TCPClient client)
+        {   //Под сомнением.
+            TCPClient removedClient;
+            client.Client.Close();
+            Clients.TryTake(out removedClient);
+        }
+
+        ~TCPServer()
         {
             IsRunning = false;
             TCPListener.Stop();
 
-            // Закрываем все подключения
             foreach (var client in Clients)
             {
-                client.Close();
+                client.Client.Close();
             }
         }
     }
